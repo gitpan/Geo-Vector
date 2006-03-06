@@ -1,0 +1,39 @@
+Geo-Vector
+=======================
+
+Geo::Vector is a wrapper from module ogr (from GDAL). The intended
+functionality of Geo::Vector is to enable data transfer between GDAL,
+libral, and Gtk2::Ex::Geo (the GUI). GDAL is used to access possibly
+huge geospatial vector files and libral is used to rasterization,
+visualization, and other tasks. The GUI may be used to let the user
+manipulate, visualize etc vector data.
+
+Geo::Vector is a sister module to Geo::Raster. The idea is that both
+are subclasses of (currently non-existing abstract)
+Geo::Layer. Geo::Layer would describe a geospatial data layer for the
+Gtk2::Ex::Geo module. Gtk2::Ex::Geo is a set of modules, with which
+one can build geospatially aware graphical applications using the
+gtk2-perl perl bindings for Gtk+ libraries.
+
+INSTALLATION
+
+To install this module type the following:
+
+   perl Makefile.PL
+   make
+   make test
+   make install
+
+DEPENDENCIES
+
+This module requires these other modules and libraries:
+
+ogr from GDAL and libral
+
+COPYRIGHT AND LICENCE
+
+Copyright (C) 2005 by Ari Jolma
+
+This library is free software; you can redistribute it and/or modify
+it under the same terms as Perl itself, either Perl version 5.8.5 or,
+at your option, any later version of Perl 5 you may have available.

@@ -1,0 +1,12 @@
+Changes
+Makefile.PL
+MANIFEST
+ppport.h
+README
+Vector.xs
+typemap
+t/Geo-Vector.t
+fallback/const-c.inc
+fallback/const-xs.inc
+lib/Geo/Vector.pm
+META.yml                                 Module meta-data (added by MakeMaker)
