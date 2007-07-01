@@ -8,13 +8,6 @@ huge geospatial vector files and libral is used to rasterization,
 visualization, and other tasks. The GUI may be used to let the user
 manipulate, visualize etc vector data.
 
-Geo::Vector is a sister module to Geo::Raster. The idea is that both
-are subclasses of (currently non-existing abstract)
-Geo::Layer. Geo::Layer would describe a geospatial data layer for the
-Gtk2::Ex::Geo module. Gtk2::Ex::Geo is a set of modules, with which
-one can build geospatially aware graphical applications using the
-gtk2-perl perl bindings for Gtk+ libraries.
-
 INSTALLATION
 
 To install this module type the following:

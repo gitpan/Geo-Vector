@@ -3,9 +3,7 @@
 
 #########################
 
-# change 'tests => 2' to 'tests => last_test_to_print';
-
-use Test::More tests => 2;
+use Test::More qw(no_plan);
 BEGIN { use_ok('Geo::Vector') };
 
 my $fail = 0;
@@ -29,10 +27,111 @@ ok( $fail == 0 , 'Constants' );
 
 use Carp;
 
-#$world = new Geo::Vector "/home/gis/maapera/1143/m114301/ARC";
+#goto here;
 
+for ('dbf','prj','shp','shx') {
+    unlink "t/test.$_";
+}
 
-#$lc = new Geo::Raster filename=>'/home/ajolma/proj/clime/climate_data/lc_clip.bil',load=>1;
-#$bg = $world->rasterize(like=>$lc);
-#$grid = new Geo::Vector '/home/ajolma/proj/clime/climate_data/RCAO_l.shp';
-#$raster = $grid->rasterize(like=>$lc,value_from=>'rlat_rlon');
+eval {
+    $test = new Geo::Vector(datasource=>'foo');
+};
+ok($@ eq '', 'open anything as a datasource');
+
+@layers = (1);
+if ($test) {
+    $layers = $test->layers;
+    @layers = keys %$layers;
+}
+ok(@layers == 0, 'blank datasource does not have any layers');
+
+eval {
+    $test = new Geo::Vector(driver=>'ESRI Shapefile',datasource=>'./t');
+};
+ok($@ eq '', 'create a new dataset');
+
+for (keys %Geo::Vector::GEOMETRY_TYPE) {
+    next if $_ =~ /GeometryC/;
+    next if $_ =~ /Multi/;
+    next if $_ =~ /Unkno/;
+    eval {
+	$test->layer(layer=>'test'.$_, geometry_type=>$_);
+    };
+    print STDERR "$@\n" if $@;
+    ok($_ eq $test->geometry_type(),"Create layer with $_ type");
+    #$test->delete_layer('test'.$_);
+    for my $e ('dbf','prj','shp','shx') {
+	unlink "t/test$_.$e";
+    }
+}
+
+eval {
+    $test->layer(layer=>'test', geometry_type=>'Point');
+};
+print STDERR "$@\n" if $@;
+ok($@ eq '', 'create a layer into the new dataset');
+
+eval {
+    $test->schema({int=>{Number=>0, TypeName=>'Integer'}, real=>{Number=>1, TypeName=>'Real'}});
+};
+print STDERR "$@\n" if $@;
+ok($@ eq '', 'add a schema into the layer');
+
+eval {
+    $test->add_feature(geometry=>[1.123,2.345],int=>12,real=>3.4);
+    $test->add_feature(geometry=>[2.123,2.345],int=>13,real=>4.4);
+    $test->add_feature(geometry=>[0.123,2.345],int=>15,real=>7.4);
+};
+print STDERR "$@\n" if $@;
+ok($@ eq '', 'add a feature into the layer');
+
+@range = $test->value_range(field_name=>'int',filter_rect=>[1,2,3,3]);
+
+ok($range[1] == 13, 'value_range with filter_rect');
+undef $test;
+
+eval {
+    $test = new Geo::Vector(datasource=>'./t', layer=>'test');
+};
+print STDERR "$@\n" if $@;
+ok($@ eq '', 'open a layer');
+
+ok ($test->feature_count == 3, 'feature_count');
+ok ($test->field_count == 2, 'field_count');
+
+@w = $test->world;
+ok (@w == 4, 'world size');
+
+eval {
+    $f = $test->feature(0);
+};
+
+print STDERR "$@\n" if $@;
+ok($@ eq '', 'retrieve a feature');
+
+ok (abs($f->{geometry}->[0]-1.123) < 0.01, 'returns correct data');
+ok (abs($f->{real}-3.4) < 0.01, 'returns correct attr');
+
+for ('dbf','prj','shp','shx') {
+    unlink "t/test.$_";
+}
+
+# test feature set
+here:
+    print STDERR "\n";
+$v = Geo::Vector->new();
+
+$v->add_feature(sfield => 'string', ifield => 1, rfield => 1.23, geometry => [12.34, 56.78], geometry_type => 'Point');
+
+ok($v->feature_count == 1, 'fset: feature count');
+
+my $c = $v->field_count(feature=>0);
+
+ok($c == 3, 'fset: field count');
+
+$s = $v->schema(0);
+
+ok($s->{rfield}{TypeName} eq 'Real', 'fset: schema');
+ok($s->{sfield}{TypeName} eq 'String', 'fset: schema');
+
+#$v->render();

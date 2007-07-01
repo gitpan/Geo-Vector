@@ -1,81 +1,61 @@
 use 5.008;
+
+my($inc,$libs,$cflags) = ('','','');
+
+my %missing_modules;
+
+$missing_modules{chk_module('POSIX')} = 1;
+$missing_modules{chk_module('Carp')} = 1;
+$missing_modules{chk_module('File::Basename')} = 1;
+$missing_modules{chk_module('Geo::GDAL')} = 1;
+$missing_modules{chk_module('ExtUtils::MakeMaker')} = 1;
+$missing_modules{chk_module('ExtUtils::Depends')} = 1;
+$missing_modules{chk_module('Geo::Raster')} = 1;
+$missing_modules{chk_module('Geo::Distance')} = 1;
+$missing_modules{chk_module('Graph')} = 1;
+delete $missing_modules{''};
+
+my @missing_modules = keys %missing_modules;
+warn "Following required modules are missing: @missing_modules\n" if @missing_modules;
+
 use ExtUtils::MakeMaker;
 use ExtUtils::Depends; 
+use ExtUtils::PkgConfig;
 
-chk_module('gdal','ogr','Geo::Raster');
-if (%missing_modules) {
-    print "Following required modules are missing:";
-    for (keys %missing_modules) {
-	print " $_";
+my($inc,$libs,$cflags) = ('','','');
+
+for $package ('gdal','gdk-pixbuf-2.0','libral') {
+    print "Checking for $package: ";
+    my($c,$l);
+    if ($package eq 'gdal' and $^O ne 'MSWin32') {
+	$c = `gdal-config --cflags`;
+	chomp $c;
+	$l = `gdal-config --libs`;
+	chomp $l;
+    } else {
+	%pkg_info = ExtUtils::PkgConfig->find ($package);
+	$c = $pkg_info{cflags};
+	$l = $pkg_info{libs};
     }
-    print "\n";
-    exit;
-}
-
-# search for ral_config.h
-
-my($pgplot_inc,$pgplot_libs,$netpbm_libs,$ral_libs) = ('','','','');
-
-my $ral_config;
-for ('/usr/include','/usr/local/include',$ENV{RAL_DIR},'../libral') {
-    print "testing: $_/ral_config.h\n";
-    next unless -f "$_/ral_config.h";
-    $ral_dir = $_;
-    $ral_config = "$_/ral_config.h";
-    last;
-}
-unless ($ral_config) {
-    print "Can't find ral_config.h, unable to continue.\n";
-    print "Consider export RAL_DIR=DIR; perl Makefile.PL\n";
-    exit 1;
-}
-print "Using $ral_config for libral configuration.\n";
-
-$ral_inc = " -I$ral_dir";
-if ($ral_dir =~ /\/include$/) {
-    $ral_dir =~ s/\/include$//;
-    $ral_dir .= '/lib';
-} else {
-    $ral_dir .= '/.libs';
-}
-$ral_libs = " -L$ral_dir -lral";
-
-$ral_libs .= " -lgdal";
-
-
-# check for the modules required by Geo::Raster
-
-sub chk_module {
-    for my $pkg (@_) {
-	print "Checking for $pkg ..";
-	eval { 
-	    my $p; 
-	    ($p = $pkg . ".pm") =~ s#::#/#g; 
-	    require $p; 
-	};
-	if ($@) {
-	    print " failed\n";
-	    $missing_modules{$pkg} = 1;
-	} else {
-	    print " ok\n";
+    $cflags .= " $c";
+    # this code is for MinGW in fact
+    if ($^O eq "MSWin32") {
+	my @a = split /\s+/,$l;
+	for (@a) {
+	    if (/^-l/ and !(/.dll/)) {
+		$_ .= '.dll.a';
+	    }
 	}
+	$l = join(' ',@a);
     }
+    $libs .= " $l";
+    print "ok\n";
 }
-
-my $GLIB_CFLAGS = `pkg-config --cflags glib-2.0`;
-chomp $GLIB_CFLAGS;
-my $GLIB_LIBS = `pkg-config --libs glib-2.0`;
-chomp $GLIB_LIBS;
-
-my $GTK_CFLAGS = `pkg-config --cflags gtk+-2.0`;
-chomp $GTK_CFLAGS;
-my $GTK_LIBS = `pkg-config --libs gtk+-2.0`;
-chomp $GTK_LIBS;
 
 $package = new ExtUtils::Depends('Geo::Vector');
 
-$package->set_inc($ral_inc);
-$package->set_libs($ral_libs .' ' . $GLIB_LIBS .' ' . $GTK_LIBS);
+$package->set_inc($inc);
+$package->set_libs($libs);
 
 $package->add_typemaps("typemap");
 
@@ -91,18 +71,12 @@ $package->add_pm (%pm_files);
 
 WriteMakefile(
 	      NAME              => 'Geo::Vector',
-	      VERSION_FROM      => 'lib/Geo/Vector.pm', # finds $VERSION
+	      VERSION_FROM      => 'lib/Geo/Vector.pm',
 	      $package->get_makefile_vars(),
-	      PREREQ_PM         => {}, # e.g., Module::Name => 1.1
-	      ($] >= 5.005 ?     ## Add these new keywords supported since 5.005
-	       (ABSTRACT_FROM  => 'lib/Geo/Vector.pm', # retrieve abstract from module
-		AUTHOR         => 'Ari Jolma <ajolma at tkk.fi>') : ()),
-#	      LIBS              => ['-lgdal -lral'], # e.g., '-lm'
-#	      DEFINE            => '', # e.g., '-DHAVE_SOMETHING'
-#	      INC               => '-I.', # e.g., '-I. -I/usr/include/other'
-	      CCFLAGS => '-O2 -fno-builtin -ansi '.$GLIB_CFLAGS.' '.$GTK_CFLAGS
-	      # Un-comment this if you add C files to link with later:
-	      # OBJECT            => '$(O_FILES)', # link all the C files too
+	      ( $] >= 5.005 ?
+		(ABSTRACT_FROM  => 'lib/Geo/Vector.pm',
+		 AUTHOR         => 'Ari Jolma <ajolma at tkk.fi>') : () ),
+	      CCFLAGS => "-O2 -fno-builtin $cflags $inc",
 	      );
 if  (eval {require ExtUtils::Constant; 1}) {
   # If you edit these definitions to change the constants used by this module,
@@ -126,4 +100,21 @@ else {
     my $fallback = File::Spec->catfile('fallback', $file);
     copy ($fallback, $file) or die "Can't copy $fallback to $file: $!";
   }
+}
+
+sub chk_module {
+    my $pkg = shift;
+    print "Checking for $pkg:";
+    eval { 
+	my $p; 
+	($p = $pkg . ".pm") =~ s#::#/#g; 
+	require $p; 
+    };
+    if ($@) {
+	print " failed\n";
+	return $pkg;
+    } else {
+	print " ok\n";
+	return '';
+    }
 }
